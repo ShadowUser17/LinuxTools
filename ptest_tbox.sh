@@ -16,6 +16,11 @@ function tbox_torip {
     echo "$(curl --proxy ${TBOX_TOR} ident.me)"
 }
 
+function tbox_chown {
+    [[ -n "$1" ]] && \
+    sudo chown "$(id -u):$(id -g)" "$1"
+}
+
 function tbox_ncat1 {
     [[ -n "${TBOX_VPN}" && -n "${TBOX_PORT1}" ]] && \
     sudo ncat -v -n -l "${TBOX_VPN}" "${TBOX_PORT1}"
