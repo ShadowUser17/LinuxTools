@@ -42,7 +42,13 @@ def main(args=None):
             print(method.name, ': ', gen_hash(method, password), sep='')
 
         else:
-            print(method.name, ': ', gen_hash(method, args.password), sep='')
+            length = len(args.password)
+
+            if length >= args.length:
+                print(method.name, ': ', gen_hash(method, args.password), sep='')
+
+            else:
+                print('Password: ', length, ' < ', args.length, sep='')
 
     except Exception:
         traceback.print_exc()
