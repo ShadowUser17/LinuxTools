@@ -4,21 +4,31 @@ import argparse
 import collections
 import pathlib
 
-SENSOR_PATH = ''
-
 
 class Sensor(collections.OrderedDict):
     def __init__(self, path):
         sp = super()
         sp.__init__(self)
 
-        self._path = pathlib.Path(path)
+        self._path = pathlib.Path('/sys/class/hwmon')
+        self._path = self._path.joinpath(path)
         self.sys_name = self._path.name
         self.name = ''
 
         self._get_name()
         self._get_temps()
 
+    def __eq__(self, obj):
+        return self.sys_name == obj.sys_name
+
+    def __ne__(self, obj):
+        return self.sys_name != obj.sys_name
+
+    def __lt__(self, obj):
+        return self.sys_name < obj.sys_name
+
+    def __gt__(self, obj):
+        return self.sys_name > obj.sys_name
 
     def _get_name(self):
         name = self._path.joinpath('name')
@@ -27,7 +37,6 @@ class Sensor(collections.OrderedDict):
             name = name.read_text()
             self.name = name.rstrip()
 
-
     def _get_temps(self):
         temps = list(self._path.glob('temp*_input'))
         if not temps: return
@@ -35,10 +44,12 @@ class Sensor(collections.OrderedDict):
         temps.sort()
         for temp_item in temps:
             temp_name = temp_item.name
+            temp_name = temp_name.split('_')
+            temp_name = temp_name[0]
+
             temp_item = temp_item.read_text()
             temp_item = temp_item.rstrip()
             self[temp_name] = str(int(temp_item) / 1000)
-
 
     def to_zabbix_keys(self):
         items = []
@@ -54,11 +65,13 @@ class HWMons:
         self.sensors = []
 
         for item in self._path.iterdir():
-            tmp = Sensor(item.absolute())
+            tmp = Sensor(item.name)
 
             if tmp:
                 self.sensors.append(tmp)
 
+        else:
+            self.sensors.sort()
 
     def show_sensors(self):
         for sensor in self.sensors:
@@ -69,8 +82,9 @@ class HWMons:
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-d', dest='detect', default=False, action='store_true')
-    parser.add_argument('-k', dest='key', default='')
+    parser.add_argument('-d', dest='detect', action='store_true', help='Show all sensors.')
+    parser.add_argument('-s', dest='sensor', default='', help='Example: hwmon2')
+    parser.add_argument('-k', dest='key', default='', help='Example: temp1')
     return parser.parse_args()
 
 
@@ -81,13 +95,13 @@ if __name__ == "__main__":
         if args.detect:
             sensors = HWMons()
             sensors.show_sensors()
-        
-        elif args.key:
-            cpu = Sensor(SENSOR_PATH)
+
+        elif args.sensor and args.key:
+            cpu = Sensor(args.sensor)
             print(cpu.get(args.key))
-        
-        else:
-            cpu = Sensor(SENSOR_PATH)
+
+        elif args.sensor:
+            cpu = Sensor(args.sensor)
             print(cpu.to_zabbix_keys())
 
     except Exception:
