@@ -54,7 +54,7 @@ class Sensor(collections.OrderedDict):
     def to_zabbix_keys(self):
         items = []
         for key in self.keys():
-            items.append('{"{#CPUNAME}":' + key + '}')
+            items.append('{"cpu_id":"' + key + '"}')
 
         return '{"data":[' + ','.join(items) + ']}'
 
