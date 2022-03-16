@@ -6,7 +6,7 @@ import traceback
 import subprocess
 
 
-class DirCollection:
+class GitCollection:
     def __init__(self, base_dir: str, exclude_list: list) -> None:
         self._base = pathlib.Path(base_dir)
         self._list = list()
@@ -14,18 +14,10 @@ class DirCollection:
 
 
     def __iter__(self) -> typing.Iterator:
-        return map(lambda it: str(it.parent), self._list)
+        return map(lambda it: it.parent, self._list)
 
 
-    def __len__(self) -> int:
-        return len(self._list)
-
-
-    def pop(self) -> pathlib.Path:
-        return self._list.pop()
-
-
-    def update(self) -> None:
+    def update(self) -> int:
         tmp_data = list()
 
         for item in self._base.iterdir():
@@ -37,6 +29,27 @@ class DirCollection:
                 tmp_data.extend(sub_items)
 
         self._list = tmp_data
+        return len(self._list)
+
+
+class GitUpdate:
+    def __init__(self, git_list: GitCollection) -> None:
+        self._list = list(git_list)
+
+
+    def _git_exec(self, git_repo: pathlib.Path) -> None:
+        cmd = subprocess.Popen(
+            ['/usr/bin/git', 'pull', 'origin', '--rebase'],
+            cwd=str(git_repo), shell=False
+        )
+
+        cmd.wait()
+
+
+    def update(self) -> None:
+        for item in self._list:
+            print('Update:', item)
+            self._git_exec(item)
 
 
 def get_args() -> argparse.Namespace:
@@ -65,11 +78,11 @@ if __name__ == '__main__':
         args = get_args()
         exclude_list = get_exclude_list(args.dir_file)
 
-        dirs = DirCollection(args.dir_base, exclude_list)
+        dirs = GitCollection(args.dir_base, exclude_list)
         dirs.update()
 
-        for item in dirs:
-            print(item)
+        repos = GitUpdate(dirs)
+        repos.update()
 
     except Exception:
         traceback.print_exc()
