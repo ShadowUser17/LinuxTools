@@ -3,7 +3,9 @@ import typing
 import pathlib
 import argparse
 import traceback
+import threading
 import subprocess
+import multiprocessing
 
 
 class GitCollection:
@@ -35,21 +37,32 @@ class GitCollection:
 class GitUpdate:
     def __init__(self, git_list: GitCollection) -> None:
         self._list = list(git_list)
+        cpus = multiprocessing.cpu_count()
+        self._lock = threading.Semaphore(cpus)
 
 
     def _git_exec(self, git_repo: pathlib.Path) -> None:
+        self._lock.acquire()
+
         cmd = subprocess.Popen(
             ['/usr/bin/git', 'pull', 'origin', '--rebase'],
             cwd=str(git_repo), shell=False
         )
 
-        cmd.wait()
+        print('Repo:', git_repo, 'Status:', cmd.wait())
+        self._lock.release()
 
 
     def update(self) -> None:
+        thr_list = list()
+
         for item in self._list:
-            print('Update:', item)
-            self._git_exec(item)
+            thr_item = threading.Thread(target=self._git_exec, args=(item,))
+            thr_list.append(thr_item)
+            thr_item.start()
+
+        for item in thr_list:
+            item.join()
 
 
 def get_args() -> argparse.Namespace:
