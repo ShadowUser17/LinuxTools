@@ -17,10 +17,6 @@ class GitCollection:
         return iter(self._list)
 
 
-    def __len__(self) -> int:
-        return len(self._list)
-
-
     def update(self) -> int:
         sub_items = filter(lambda it: it.is_dir(), self._base.iterdir())
         sub_items = map(lambda it: it.joinpath('.git/config'), sub_items)
@@ -32,7 +28,8 @@ class GitCollection:
 
 class GitTransform:
     def __init__(self, git_list: GitCollection) -> None:
-        self._list = git_list
+        self._list = list(git_list)
+        self._stat = 0
 
 
     def _load_config(self, cfg_path: pathlib.Path) -> list:
@@ -49,6 +46,7 @@ class GitTransform:
     def _transform_config(self, git_conf_data: list) -> list:
         template = 'git@{}:{}'
         git_data = list()
+        self._stat = 0
 
         for line in git_conf_data:
             if line.startswith('url'):
@@ -61,6 +59,7 @@ class GitTransform:
                 else:
                     tmp[-1] = template.format(url.netloc, url.path[1:])
                     git_data.append(' '.join(tmp))
+                    self._stat += 1
 
             else:
                 git_data.append(line)
@@ -82,7 +81,10 @@ class GitTransform:
         for item in self._list:
             config = self._load_config(item)
             config = self._transform_config(config)
-            self._save_config(item, config)
+
+            if self._stat:
+                print(item, ': updated', sep='')
+                self._save_config(item, config)
 
 
 def get_args() -> argparse.Namespace:
