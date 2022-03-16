@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
+from urllib import parse as urllib
+
 import typing
 import pathlib
 import argparse
 import traceback
 
 
-class DirCollection:
+class GitCollection:
     def __init__(self, base_dir: str) -> None:
         self._base = pathlib.Path(base_dir)
         self._list = list()
@@ -19,10 +21,6 @@ class DirCollection:
         return len(self._list)
 
 
-    def pop(self) -> pathlib.Path:
-        return self._list.pop()
-
-
     def update(self) -> int:
         sub_items = filter(lambda it: it.is_dir(), self._base.iterdir())
         sub_items = map(lambda it: it.joinpath('.git/config'), sub_items)
@@ -30,6 +28,61 @@ class DirCollection:
 
         self._list = sub_items
         return len(self._list)
+
+
+class GitTransform:
+    def __init__(self, git_list: GitCollection) -> None:
+        self._list = git_list
+
+
+    def _load_config(self, cfg_path: pathlib.Path) -> list:
+        git_data = list()
+
+        with cfg_path.open('r') as fd:
+            lines = map(str.lstrip, fd)
+            lines = map(str.rstrip, lines)
+            git_data.extend(filter(None, lines))
+
+        return git_data
+
+
+    def _transform_config(self, git_conf_data: list) -> list:
+        template = 'git@{}:{}'
+        git_data = list()
+
+        for line in git_conf_data:
+            if line.startswith('url'):
+                tmp = line.split()
+                url = urllib.urlparse(tmp[-1])
+
+                if not url.netloc:
+                    git_data.append(line)
+
+                else:
+                    tmp[-1] = template.format(url.netloc, url.path[1:])
+                    git_data.append(' '.join(tmp))
+
+            else:
+                git_data.append(line)
+
+        return git_data
+
+
+    def _save_config(self, cfg_path: pathlib.Path, git_data: list) -> None:
+        with cfg_path.open('w') as fd:
+            for line in git_data:
+                if line.startswith('['):
+                    print(line, sep='', file=fd)
+
+                else:
+                    print('\t', line, sep='', file=fd)
+
+
+    def transform(self) -> None:
+        for item in self._list:
+            config = self._load_config(item)
+            config = self._transform_config(config)
+            self._save_config(item, config)
 
 
 def get_args() -> argparse.Namespace:
@@ -42,11 +95,11 @@ if __name__ == '__main__':
     try:
         args = get_args()
 
-        dirs = DirCollection(args.dir_base)
+        dirs = GitCollection(args.dir_base)
         dirs.update()
 
-        for item in dirs:
-            print(item)
+        repos = GitTransform(dirs)
+        repos.transform()
 
     except Exception:
         traceback.print_exc()
