@@ -17,19 +17,16 @@ class GitCollection:
         return iter(self._list)
 
 
-    def update(self) -> int:
+    def update(self) -> None:
         sub_items = filter(lambda it: it.is_dir(), self._base.iterdir())
         sub_items = map(lambda it: it.joinpath('.git/config'), sub_items)
-        sub_items = list(filter(lambda it: it.exists(), sub_items))
-
-        self._list = sub_items
-        return len(self._list)
+        self._list = list(filter(lambda it: it.exists(), sub_items))
 
 
 class GitTransform:
     def __init__(self, git_list: GitCollection) -> None:
-        self._list = list(git_list)
-        self._stat = 0
+        self._list = iter(git_list)
+        self._stat = False
 
 
     def _load_config(self, cfg_path: pathlib.Path) -> list:
@@ -46,7 +43,7 @@ class GitTransform:
     def _transform_config(self, git_conf_data: list) -> list:
         template = 'git@{}:{}'
         git_data = list()
-        self._stat = 0
+        self._stat = False
 
         for line in git_conf_data:
             if line.startswith('url'):
@@ -59,7 +56,7 @@ class GitTransform:
                 else:
                     tmp[-1] = template.format(url.netloc, url.path[1:])
                     git_data.append(' '.join(tmp))
-                    self._stat += 1
+                    self._stat = True
 
             else:
                 git_data.append(line)
@@ -83,8 +80,11 @@ class GitTransform:
             config = self._transform_config(config)
 
             if self._stat:
-                print(item, ': updated', sep='')
                 self._save_config(item, config)
+                print('Repo: ', item, ': updated', sep='')
+
+            else:
+                print('Repo: ', item, ': ignored', sep='')
 
 
 def get_args() -> argparse.Namespace:
