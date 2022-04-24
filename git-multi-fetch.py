@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import queue
 import typing
 import pathlib
 import argparse
@@ -32,46 +33,43 @@ class GitUpdate:
         self._list = list(git_list)
         self._fail = list()
 
-        cpus = os.cpu_count()
+        self._queue = queue.Queue()
+        self._cpus = os.cpu_count()
 
-        if cpus:
-            self._lock = threading.Semaphore(cpus)
-            self._cpus = cpus
-
-        else:
-            self._lock = threading.Semaphore(2)
+        if not self._cpus:
             self._cpus = 2
 
 
-    def _git_exec(self, git_repo: str) -> None:
-        self._lock.acquire()
+    def _git_exec(self) -> None:
+        while not self._queue.empty():
+            git_repo = self._queue.get()
 
-        cmd = subprocess.Popen(
-            ['/usr/bin/git', 'pull', 'origin', '--rebase'],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            cwd=git_repo, shell=False
-        )
+            cmd = subprocess.Popen(
+                ['/usr/bin/git', 'pull', 'origin', '--rebase'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                cwd=git_repo, shell=False
+            )
 
-        if cmd.wait():
-            self._fail.append(git_repo)
+            if cmd.wait():
+                self._fail.append(git_repo)
 
-        print('Repo:', git_repo)
-        self._lock.release()
+            print('Repo:', git_repo)
+            self._queue.task_done()
 
 
     def update(self) -> None:
-        print('Workers allowed:', self._cpus)
         print('Repositories:', len(self._list))
-        thr_list = list()
 
         for item in self._list:
-            thr_item = threading.Thread(target=self._git_exec, args=(item,))
-            thr_list.append(thr_item)
+            self._queue.put(item)
+
+        for tid in range(self._cpus):
+            thr_item = threading.Thread(target=self._git_exec)
+            print('Start worker:', tid)
             thr_item.start()
 
-        for thr_item in thr_list:
-            thr_item.join()
+        self._queue.join()
 
         if self._fail:
             print('\nUpdate failure:')
