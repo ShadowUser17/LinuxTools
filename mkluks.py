@@ -6,6 +6,9 @@ import argparse
 import traceback
 import subprocess
 
+DEV_LOOP = pathlib.Path("/dev/loop0")
+DEV_LUKS = pathlib.Path("/dev/mapper/sec0")
+
 
 def cmd_exec(*args) -> bool:
     print("Run:", " ".join(args))
@@ -15,11 +18,9 @@ def cmd_exec(*args) -> bool:
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-
     parser.add_argument("disk_file", help="Set disk file name")
     parser.add_argument("disk_size", type=int, help="Set disk size in GB")
-    parser.add_argument("key_file", help="Set key file name")
-
+    parser.add_argument("key_file",  help="Set key file name")
     return parser.parse_args()
 
 
@@ -59,22 +60,22 @@ try:
     if not cmd_exec("modprobe", "loop"):
         sys.exit(3)
 
-    if not cmd_exec("losetup", "/dev/loop0", str(disk_file)):
+    if not cmd_exec("losetup", str(DEV_LOOP), str(disk_file)):
         sys.exit(3)
 
-    if not cmd_exec("cryptsetup", "-q", "-M", "luks2", "-h", "sha256", "-c", "twofish-xts-plain64", "-s", "512", "-d", str(key_file), "luksFormat", str(disk_file), "sec0"):
+    if not cmd_exec("cryptsetup", "-q", "-M", "luks2", "-h", "sha256", "-c", "twofish-xts-plain64", "-s", "512", "-d", str(key_file), "luksFormat", str(disk_file), DEV_LUKS.name):
         sys.exit(3)
 
-    if not cmd_exec("cryptsetup", "--key-file", str(key_file), "open", "/dev/loop0", "sec0"):
+    if not cmd_exec("cryptsetup", "--key-file", str(key_file), "open", str(DEV_LOOP), DEV_LUKS.name):
         sys.exit(3)
 
-    if not cmd_exec("mkfs", "-t", "ext4", "/dev/mapper/sec0"):
+    if not cmd_exec("mkfs", "-t", "ext4", str(DEV_LUKS)):
         sys.exit(3)
 
-    if not cmd_exec("cryptsetup", "close", "sec0"):
+    if not cmd_exec("cryptsetup", "close", DEV_LUKS.name):
         sys.exit(3)
 
-    if not cmd_exec("losetup", "-d", "/dev/loop0"):
+    if not cmd_exec("losetup", "-d", str(DEV_LOOP)):
         sys.exit(3)
 
 except Exception:
