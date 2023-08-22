@@ -2,7 +2,7 @@
 import subprocess
 import traceback
 import json
-import os
+
 
 def list_forks() -> list:
     cmd = subprocess.Popen(
