@@ -14,6 +14,7 @@ class VM:
         self._vms_dir = pathlib.Path(os.environ.get("QEMU_VM_DIR", self._root_dir.joinpath("vms")))
 
         self.id = id
+        self.boot = ""
         self.cores = "1"
         self.memory = "2G"
         self.network = "virbr0"
@@ -22,15 +23,17 @@ class VM:
 
     def __repr__(self) -> str:
         return '''\
-ID: "{vm_id}"
-Monitor: "telnet://{vm_address}:{mon_port}"
-Access: "spice://{vm_address}:{vm_port}"
-Cores: "{vm_cores}"
-Memory: "{vm_memory}"
-Network: "{vm_network}" ({vm_mac})
-Disk: "{disk_path}" ({disk_size})\
+   ID: "{vm_id}"
+   Monitor: "telnet://{vm_address}:{mon_port}"
+   Access: "spice://{vm_address}:{vm_port}"
+   Cores: "{vm_cores}"
+   Memory: "{vm_memory}"
+   Network: "{vm_network}" ({vm_mac})
+   Boot: "{vm_iso}"
+   Disk: "{disk_path}" ({disk_size})
 '''.format(
         vm_id=self.id,
+        vm_iso=self.get_boot_path(),
         vm_cores=self.cores,
         vm_memory=self.memory,
         vm_network=self.network,
@@ -55,6 +58,10 @@ Disk: "{disk_path}" ({disk_size})\
     def get_script_path(self) -> pathlib.Path:
         return self._vms_dir.joinpath("{}-vm-run.sh".format(self.id))
 
+    def get_boot_path(self) -> str:
+        file = self._iso_dir.joinpath(self.boot)
+        return str(file) if file.is_file() else ""
+
     def create_base_dirs(self) -> None:
         self._root_dir.mkdir(exist_ok=True)
         self._iso_dir.mkdir(exist_ok=True)
@@ -73,26 +80,27 @@ Disk: "{disk_path}" ({disk_size})\
     def create_script(self) -> None:
         template = '''\
 #!/bin/bash
-VMISO=""
+VMISO="{vm_iso}"
 
 echo -e "{vm_id} ({vm_mac})"
 echo -e "remmina -c spice://{vm_address}:{vm_port}"
 echo -e "ncat -t {vm_address} {mon_port}"
 
-qemu-system-x86_64 -nodefaults \
--boot "order=c,menu=on" -monitor "telnet:{vm_address}:{mon_port},server,nowait" \
--smp "sockets=1,cores={vm_cores}" -m "{vm_memory}" -vga qxl \
--cpu qemu64-v1 -machine "type=q35,accel=kvm" \
--name "{vm_id}" -pidfile "{vm_pid}" -daemonize \
--drive "if=ide,media=cdrom,file=$VMISO" \
--drive "if=virtio,index=0,media=disk,file={vm_disk}" \
--device "virtio-net,netdev=eth0,mac={vm_mac}" \
--netdev "bridge,id=eth0,br={vm_network}" \
+qemu-system-x86_64 -nodefaults \\
+-boot "order=c,menu=on" -monitor "telnet:{vm_address}:{mon_port},server,nowait" \\
+-smp "sockets=1,cores={vm_cores}" -m "{vm_memory}" -vga qxl \\
+-cpu qemu64-v1 -machine "type=q35,accel=kvm" \\
+-name "{vm_id}" -pidfile "{vm_pid}" -daemonize \\
+-drive "if=ide,media=cdrom,file=$VMISO" \\
+-drive "if=virtio,index=0,media=disk,file={vm_disk}" \\
+-device "virtio-net,netdev=eth0,mac={vm_mac}" \\
+-netdev "bridge,id=eth0,br={vm_network}" \\
 -spice "addr={vm_address},port={vm_port},disable-ticketing=on"
 '''
 
         data = template.format(
             vm_id=self.id,
+            vm_iso=self.get_boot_path(),
             vm_pid=self._vms_dir.joinpath("{}.pid".format(self.id)),
             vm_cores=self.cores,
             vm_memory=self.memory,
@@ -114,6 +122,7 @@ qemu-system-x86_64 -nodefaults \
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("vm_id", help="Set VM id.")
+    parser.add_argument("--iso", dest="vm_boot", default="", help="Set VM boot image.")
     parser.add_argument("--cpu", dest="vm_cores", default="1", help="Set VM cpu cores. (Default: 1)")
     parser.add_argument("--mem", dest="vm_memory", default="2G", help="Set VM memory. (Default: 2G)")
     parser.add_argument("--net", dest="vm_network", default="virbr0", help="Set VM bridge. (Default: virbr0)")
@@ -126,6 +135,7 @@ try:
     args = get_args()
 
     qemu = VM(args.vm_id)
+    qemu.boot = args.vm_boot
     qemu.cores = args.vm_cores
     qemu.memory = args.vm_memory
     qemu.network = args.vm_network
@@ -135,7 +145,7 @@ try:
     qemu.create_base_dirs()
     qemu.create_disk()
     qemu.create_script()
-    print(qemu)
+    print("VM info:\n", qemu, sep="")
 
 except Exception:
     traceback.print_exc()
