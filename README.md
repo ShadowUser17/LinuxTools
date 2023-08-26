@@ -1,1 +1,1 @@
-#### Scripts for Linux automatization
+### Scripts for Linux automatization.
