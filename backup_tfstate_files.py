@@ -26,7 +26,7 @@ def get_object_data(client: any, bucket: str, file: str) -> bytes:
 def put_file_data(file_name: str, data: bytes, force: bool = False) -> None:
     file = pathlib.Path(file_name)
     file.parent.mkdir(parents=True, exist_ok=True)
-    file.touch(mode=644, exist_ok=force)
+    file.touch(exist_ok=force)
     file.write_bytes(data)
 
 
