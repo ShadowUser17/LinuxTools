@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+__version__ = "0.1.0"
+
 import os
 import sys
 import pathlib
@@ -21,6 +23,12 @@ class VM:
         self.network = "virbr0"
         self.disk_size = "20G"
         self.disk_type = "qcow2"
+
+    def __call__(self) -> str:
+        self.create_base_dirs()
+        self.create_disk()
+        self.create_script()
+        return self.__repr__()
 
     def __repr__(self) -> str:
         return '''\
@@ -144,10 +152,7 @@ try:
     qemu.disk_size = args.disk_size
     qemu.disk_type = args.disk_type
 
-    qemu.create_base_dirs()
-    qemu.create_disk()
-    qemu.create_script()
-    print("VM info:\n", qemu, sep="")
+    print("VM info:\n", qemu(), sep="")
 
 except Exception:
     traceback.print_exc()
