@@ -11,7 +11,8 @@ class VM:
     def __init__(self, id: str) -> None:
         self._root_dir = pathlib.Path(os.environ.get("QEMU_BASE_DIR", os.path.expanduser("~/qemu")))
         self._iso_dir = pathlib.Path(os.environ.get("QEMU_ISO_DIR", self._root_dir.joinpath("iso")))
-        self._vms_dir = pathlib.Path(os.environ.get("QEMU_VM_DIR", self._root_dir.joinpath("vms")))
+        self._vms_dir = pathlib.Path(os.environ.get("QEMU_VMS_DIR", self._root_dir.joinpath("vms")))
+        self._tmp_dir = pathlib.Path(os.environ.get("QEMU_TMP_DIR", self._root_dir.joinpath("tmp")))
 
         self.id = id
         self.boot = ""
@@ -66,6 +67,7 @@ class VM:
         self._root_dir.mkdir(exist_ok=True)
         self._iso_dir.mkdir(exist_ok=True)
         self._vms_dir.mkdir(exist_ok=True)
+        self._tmp_dir.mkdir(exist_ok=True)
 
     def create_disk(self) -> None:
         if not self.get_disk_path().exists():
