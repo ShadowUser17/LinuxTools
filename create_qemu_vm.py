@@ -101,9 +101,9 @@ qemu-system-x86_64 -nodefaults \\
 -smp "sockets=1,cores={vm_cores}" -m "{vm_memory}" -vga qxl \\
 -cpu qemu64-v1 -machine "type=q35,accel=kvm" \\
 -name "{vm_id}" -pidfile "{vm_pid}" -daemonize \\
--drive "if=ide,media=cdrom,file=$VMISO" \\
--drive "if=virtio,index=0,media=disk,file={vm_disk}" \\
--device "virtio-net,netdev=eth0,mac={vm_mac}" \\
+-drive "index=0,media=cdrom,file=$VMISO" \\
+-drive "index=1,media=disk,file={vm_disk}" \\
+-device "e1000,netdev=eth0,mac={vm_mac}" \\
 -netdev "bridge,id=eth0,br={vm_network}" \\
 -spice "addr={vm_address},port={vm_port},disable-ticketing=on"
 '''
