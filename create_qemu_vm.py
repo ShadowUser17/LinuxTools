@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 import os
 import sys
@@ -23,11 +23,14 @@ class VM:
         self.network = "virbr0"
         self.disk_size = "20G"
         self.disk_type = "qcow2"
+        self.test_mode = False
 
     def __call__(self) -> str:
-        self.create_base_dirs()
-        self.create_disk()
-        self.create_script()
+        if not self.test_mode:
+            self.create_base_dirs()
+            self.create_disk()
+            self.create_script()
+
         return self.__repr__()
 
     def __repr__(self) -> str:
@@ -138,6 +141,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--net", dest="vm_network", default="virbr0", help="Set VM bridge. (Default: virbr0)")
     parser.add_argument("--size", dest="disk_size", default="20G", help="Set disk size. (Default: 20G)")
     parser.add_argument("--type", dest="disk_type", choices=["qcow2", "raw"], default="qcow2", help="Set disk type. (Default: qcow2)")
+    parser.add_argument("--test", dest="test_mode", action="store_true", help="Run in test mode.")
     return parser.parse_args()
 
 
@@ -151,6 +155,7 @@ try:
     qemu.network = args.vm_network
     qemu.disk_size = args.disk_size
     qemu.disk_type = args.disk_type
+    qemu.test_mode = args.test_mode
 
     print("VM info:\n", qemu(), sep="")
 
