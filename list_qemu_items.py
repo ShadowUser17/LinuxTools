@@ -20,7 +20,7 @@ def list_items(path: pathlib.Path, format: str) -> None:
     for item in path.iterdir():
         if item.is_file:
             stat = item.stat()
-            print("\t{} {}:{}:{} {} \"{}\" \"{}\"".format(
+            print("  {}\t\t{}:{}:{} {} \"{}\" \"{}\"".format(
                 item.name,
                 stat.st_uid,
                 stat.st_gid,
@@ -36,7 +36,7 @@ def list_items(path: pathlib.Path, format: str) -> None:
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--list", dest="type", choices=["all", "iso", "img", "tmp"], default="all", help="Set items type.")
+    parser.add_argument("--list", dest="type", choices=["all", "iso", "vms", "tmp"], default="all", help="Set items type.")
     parser.add_argument("--format", dest="format", default=r"%Y-%m-%d_%H:%M:%S", help="Set time format.")
     return parser.parse_args()
 
@@ -47,7 +47,7 @@ try:
     if args.type == "iso":
         list_items(qemu_iso_dir, args.format)
 
-    elif args.type == "img":
+    elif args.type == "vms":
         list_items(qemu_vms_dir, args.format)
 
     elif args.type == "tmp":
