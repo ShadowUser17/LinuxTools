@@ -51,7 +51,6 @@ try:
     if args.bridge in list_connections():
         raise ValueError("This {} already exists!".format(args.bridge))
 
-
     if args.address in list_address():
         raise ValueError("This {} already exists!".format(args.address))
 

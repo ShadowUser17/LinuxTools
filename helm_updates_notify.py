@@ -6,8 +6,6 @@ import logging
 import traceback
 import subprocess
 
-#from urllib import request
-
 
 def configure_logger() -> None:
     log_level = logging.DEBUG if os.environ.get("DEBUG_MODE", "") else logging.INFO

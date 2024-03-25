@@ -10,6 +10,7 @@ import traceback
 # AWS_ACCESS_KEY_ID
 # AWS_SECRET_ACCESS_KEY
 
+
 def list_objects(client: any, bucket: str, prefix: str = "", items: int = 200) -> list:
     response = client.list_objects_v2(Bucket=bucket, Prefix=prefix, MaxKeys=items)
     return (response["IsTruncated"], response["Contents"])

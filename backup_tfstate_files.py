@@ -13,6 +13,7 @@ import traceback
 # CDKTF_BUCKET_ROOT
 # CDKTF_FORCE_WRITE
 
+
 def list_objects(client: any, bucket: str, prefix: str = "", items: int = 200) -> list:
     response = client.list_objects_v2(Bucket=bucket, Prefix=prefix, MaxKeys=items)
     return (response["IsTruncated"], response["Contents"])
