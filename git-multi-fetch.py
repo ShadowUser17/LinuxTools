@@ -14,10 +14,8 @@ class GitCollection:
         self._base = pathlib.Path(base_dir)
         self._list = list()
 
-
     def __iter__(self) -> typing.Iterator:
         return map(lambda it: str(it.parent), self._list)
-
 
     def update(self) -> None:
         for sub_dir in self._base.iterdir():
@@ -39,7 +37,6 @@ class GitUpdate:
         if not self._cpus:
             self._cpus = 2
 
-
     def _git_exec(self) -> None:
         while not self._queue.empty():
             git_repo = self._queue.get()
@@ -56,7 +53,6 @@ class GitUpdate:
 
             print('Repo:', git_repo)
             self._queue.task_done()
-
 
     def update(self) -> None:
         print('Repositories:', len(self._list))

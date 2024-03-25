@@ -39,7 +39,8 @@ class Sensor(collections.OrderedDict):
 
     def _get_temps(self):
         temps = list(self._path.glob('temp*_input'))
-        if not temps: return
+        if not temps:
+            return
 
         temps.sort()
         for temp_item in temps:

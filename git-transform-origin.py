@@ -12,10 +12,8 @@ class GitCollection:
         self._base = pathlib.Path(base_dir)
         self._list = list()
 
-
     def __iter__(self) -> typing.Iterator:
         return iter(self._list)
-
 
     def update(self) -> None:
         sub_items = filter(lambda it: it.is_dir(), self._base.iterdir())
@@ -28,7 +26,6 @@ class GitTransform:
         self._list = iter(git_list)
         self._stat = False
 
-
     def _load_config(self, cfg_path: pathlib.Path) -> list:
         git_data = list()
 
@@ -38,7 +35,6 @@ class GitTransform:
             git_data.extend(filter(None, lines))
 
         return git_data
-
 
     def _transform_config(self, git_conf_data: list) -> list:
         template = 'git@{}:{}'
@@ -63,7 +59,6 @@ class GitTransform:
 
         return git_data
 
-
     def _save_config(self, cfg_path: pathlib.Path, git_data: list) -> None:
         with cfg_path.open('w') as fd:
             for line in git_data:
@@ -72,7 +67,6 @@ class GitTransform:
 
                 else:
                     print('\t', line, sep='', file=fd)
-
 
     def transform(self) -> None:
         for item in self._list:
