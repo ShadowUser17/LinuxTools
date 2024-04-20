@@ -17,14 +17,16 @@ class VM:
         self._tmp_dir = pathlib.Path(os.environ.get("QEMU_TMP_DIR", self._root_dir.joinpath("tmp")))
 
         self.id = id
-        self.boot = ""
+        self.iso = ""
         self.cores = "1"
-        self.options = "ssse3 sse4.1 sse4.2"
         self.memory = "2G"
+        self.cpu_type = "qemu64-v1"
+        self.cpu_opts = "ssse3 sse4.1 sse4.2"
         self.network = "virbr0"
         self.disk_size = "20G"
         self.disk_type = "qcow2"
         self.test_mode = False
+        self.write_force = False
 
     def __call__(self) -> str:
         if not self.test_mode:
@@ -39,9 +41,9 @@ class VM:
    ID: "{vm_id}"
    Monitor: "telnet://{vm_address}:{mon_port}"
    Access: "spice://{vm_address}:{vm_port}"
-   Cores: "{vm_cores}"
+   CPU: "{vm_cores}" ({cpu_type})
+   Options: "{cpu_opts}"
    Memory: "{vm_memory}"
-   Options: "{vm_options}"
    Network: "{vm_network}" ({vm_mac})
    Boot: "{vm_iso}"
    Disk: "{disk_path}" ({disk_size})
@@ -49,8 +51,9 @@ class VM:
         vm_id=self.id,
         vm_iso=self.get_boot_path(),
         vm_cores=self.cores,
+        cpu_type=self.cpu_type,
+        cpu_opts=self.cpu_opts,
         vm_memory=self.memory,
-        vm_options=self.options,
         vm_network=self.network,
         disk_path=self.get_disk_path(),
         disk_size=self.disk_size,
@@ -68,7 +71,9 @@ class VM:
         return "{}:{}".format("02:13:BC", ":".join([tmp[0:2], tmp[2:4], tmp[4:6]]))
 
     def get_cpu_options(self) -> str:
-        return ",".join(map(lambda item: "+{}".format(item), self.options.split()))
+        tmp = [self.cpu_type]
+        tmp.extend(map(lambda item: "+{}".format(item), self.cpu_opts.split()))
+        return ",".join(tmp)
 
     def get_disk_path(self) -> pathlib.Path:
         return self._vms_dir.joinpath("vm-{}-001.{}".format(self.id, self.disk_type))
@@ -77,7 +82,7 @@ class VM:
         return self._vms_dir.joinpath("{}-vm-run.sh".format(self.id))
 
     def get_boot_path(self) -> str:
-        file = self._iso_dir.joinpath(self.boot)
+        file = self._iso_dir.joinpath(self.iso)
         return str(file) if file.is_file() else ""
 
     def create_base_dirs(self) -> None:
@@ -108,7 +113,7 @@ echo -e "ncat -t {vm_address} {mon_port}"
 qemu-system-x86_64 -nodefaults \\
 -boot "order=c,menu=on" -monitor "telnet:{vm_address}:{mon_port},server,nowait" \\
 -smp "sockets=1,cores={vm_cores}" -m "{vm_memory}" -vga qxl \\
--cpu "qemu64-v1,{vm_options}" -machine "type=q35,accel=kvm" \\
+-cpu "{cpu_opts}" -machine "type=q35,accel=kvm" \\
 -name "{vm_id}" -pidfile "{vm_pid}" -daemonize \\
 -drive "index=0,media=cdrom,file=$VMISO" \\
 -drive "index=1,media=disk,cache=none,file={vm_disk}" \\
@@ -123,7 +128,7 @@ qemu-system-x86_64 -nodefaults \\
             vm_pid=self._vms_dir.joinpath("{}.pid".format(self.id)),
             vm_cores=self.cores,
             vm_memory=self.memory,
-            vm_options=self.get_cpu_options(),
+            cpu_opts=self.get_cpu_options(),
             vm_network=self.network,
             vm_disk=self.get_disk_path(),
             vm_mac=self.get_mac_address(),
@@ -133,7 +138,7 @@ qemu-system-x86_64 -nodefaults \\
         )
 
         file = self.get_script_path()
-        if not file.exists():
+        if not file.exists() or self.write_force:
             print("Created:", file)
             file.write_text(data)
             file.chmod(int("755", base=8))
@@ -142,14 +147,16 @@ qemu-system-x86_64 -nodefaults \\
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("vm_id", help="Set VM id.")
-    parser.add_argument("--iso", dest="vm_boot", default="", help="Set boot image.")
-    parser.add_argument("--cpu", dest="vm_cores", default="1", help="Set CPU cores.")
-    parser.add_argument("--mem", dest="vm_memory", default="2G", help="Set VM memory.")
-    parser.add_argument("--opts", dest="cpu_opts", default="ssse3 sse4.1 sse4.2", help="Enable CPU features.")
-    parser.add_argument("--net", dest="vm_network", default="virbr0", help="Set network bridge.")
+    parser.add_argument("--iso", dest="iso", default="", help="Set boot image.")
+    parser.add_argument("--cpu", dest="cores", default="1", help="Set CPU cores.")
+    parser.add_argument("--mem", dest="memory", default="2G", help="Set VM memory.")
+    parser.add_argument("--cpu_type", dest="cpu_type", default="qemu64-v1", help="Set CPU type.")
+    parser.add_argument("--cpu_opts", dest="cpu_opts", default="ssse3 sse4.1 sse4.2", help="Enable CPU features.")
+    parser.add_argument("--net", dest="network", default="virbr0", help="Set network bridge.")
     parser.add_argument("--size", dest="disk_size", default="20G", help="Set disk size.")
     parser.add_argument("--type", dest="disk_type", choices=["qcow2", "raw"], default="qcow2", help="Set disk type.")
     parser.add_argument("--test", dest="test_mode", action="store_true", help="Run in test mode.")
+    parser.add_argument("--force", dest="write_force", action="store_true", help="Rewrite existing script.")
     return parser.parse_args()
 
 
@@ -157,14 +164,16 @@ try:
     args = get_args()
 
     qemu = VM(args.vm_id)
-    qemu.boot = args.vm_boot
-    qemu.cores = args.vm_cores
-    qemu.memory = args.vm_memory
-    qemu.options = args.cpu_opts
-    qemu.network = args.vm_network
+    qemu.iso = args.iso
+    qemu.cores = args.cores
+    qemu.memory = args.memory
+    qemu.cpu_type = args.cpu_type
+    qemu.cpu_opts = args.cpu_opts
+    qemu.network = args.network
     qemu.disk_size = args.disk_size
     qemu.disk_type = args.disk_type
     qemu.test_mode = args.test_mode
+    qemu.write_force = args.write_force
 
     print("VM info:\n", qemu(), sep="")
 
