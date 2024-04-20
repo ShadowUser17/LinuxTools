@@ -118,8 +118,8 @@ qemu-system-x86_64 -nodefaults \\
 -smp "sockets=1,cores={vm_cores}" -m "{vm_memory}" -vga qxl \\
 -cpu "{cpu_opts}" -machine "type=q35,accel=kvm" \\
 -name "{vm_id}" -pidfile "{vm_pid}" -daemonize \\
--drive "index=0,media=cdrom,file=$VMISO" \\
--drive "index=1,media=disk,cache=none,file={vm_disk}" \\
+-drive "if=ide,index=0,media=cdrom,file=$VMISO" \\
+-drive "if=ide,index=1,media=disk,cache=none,file={vm_disk}" \\
 -device "{net_type},netdev=eth0,mac={net_mac}" \\
 -netdev "bridge,id=eth0,br={net_name}" \\
 -spice "addr={vm_address},port={vm_port},disable-ticketing=on"
