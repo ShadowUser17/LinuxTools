@@ -20,9 +20,11 @@ class VM:
         self.iso = ""
         self.cores = "1"
         self.memory = "2G"
+        self.address = "127.0.0.1"
         self.cpu_type = "qemu64-v1"
         self.cpu_opts = "ssse3 sse4.1 sse4.2"
-        self.network = "virbr0"
+        self.net_name = "virbr0"
+        self.net_type = "e1000"
         self.disk_size = "20G"
         self.disk_type = "qcow2"
         self.test_mode = False
@@ -41,10 +43,10 @@ class VM:
    ID: "{vm_id}"
    Monitor: "telnet://{vm_address}:{mon_port}"
    Access: "spice://{vm_address}:{vm_port}"
-   CPU: "{vm_cores}" ({cpu_type})
+   CPU: "{cpu_type}: {vm_cores}"
    Options: "{cpu_opts}"
    Memory: "{vm_memory}"
-   Network: "{vm_network}" ({vm_mac})
+   Network: "{net_name}" ({net_type}: {net_mac})
    Boot: "{vm_iso}"
    Disk: "{disk_path}" ({disk_size})
 '''.format(
@@ -54,11 +56,12 @@ class VM:
         cpu_type=self.cpu_type,
         cpu_opts=self.cpu_opts,
         vm_memory=self.memory,
-        vm_network=self.network,
+        net_name=self.net_name,
+        net_type=self.net_type,
+        net_mac=self.get_mac_address(),
         disk_path=self.get_disk_path(),
         disk_size=self.disk_size,
-        vm_mac=self.get_mac_address(),
-        vm_address="127.0.0.1",
+        vm_address=self.address,
         vm_port="10{}".format(self.id),
         mon_port="20{}".format(self.id)
     )
@@ -106,7 +109,7 @@ class VM:
 #!/bin/bash
 VMISO="{vm_iso}"
 
-echo -e "{vm_id} ({vm_mac})"
+echo -e "{vm_id} ({net_mac})"
 echo -e "remmina -c spice://{vm_address}:{vm_port}"
 echo -e "ncat -t {vm_address} {mon_port}"
 
@@ -117,8 +120,8 @@ qemu-system-x86_64 -nodefaults \\
 -name "{vm_id}" -pidfile "{vm_pid}" -daemonize \\
 -drive "index=0,media=cdrom,file=$VMISO" \\
 -drive "index=1,media=disk,cache=none,file={vm_disk}" \\
--device "e1000,netdev=eth0,mac={vm_mac}" \\
--netdev "bridge,id=eth0,br={vm_network}" \\
+-device "{net_type},netdev=eth0,mac={net_mac}" \\
+-netdev "bridge,id=eth0,br={net_name}" \\
 -spice "addr={vm_address},port={vm_port},disable-ticketing=on"
 '''
 
@@ -129,10 +132,11 @@ qemu-system-x86_64 -nodefaults \\
             vm_cores=self.cores,
             vm_memory=self.memory,
             cpu_opts=self.get_cpu_options(),
-            vm_network=self.network,
+            net_type=self.net_type,
+            net_name=self.net_name,
+            net_mac=self.get_mac_address(),
             vm_disk=self.get_disk_path(),
-            vm_mac=self.get_mac_address(),
-            vm_address="127.0.0.1",
+            vm_address=self.address,
             vm_port="10{}".format(self.id),
             mon_port="20{}".format(self.id)
         )
@@ -150,9 +154,10 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--iso", dest="iso", default="", help="Set boot image.")
     parser.add_argument("--cpu", dest="cores", default="1", help="Set CPU cores.")
     parser.add_argument("--mem", dest="memory", default="2G", help="Set VM memory.")
-    parser.add_argument("--cpu_type", dest="cpu_type", default="qemu64-v1", help="Set CPU type.")
+    parser.add_argument("--cpu_type", dest="cpu_type", choices=["host", "qemu64-v1"], default="qemu64-v1", help="Set CPU type.")
     parser.add_argument("--cpu_opts", dest="cpu_opts", default="ssse3 sse4.1 sse4.2", help="Enable CPU features.")
-    parser.add_argument("--net", dest="network", default="virbr0", help="Set network bridge.")
+    parser.add_argument("--net", dest="net_name", default="virbr0", help="Set network bridge.")
+    parser.add_argument("--net_type", dest="net_type", choices=["e1000", "virtio-net"], default="e1000", help="Set network interface type.")
     parser.add_argument("--size", dest="disk_size", default="20G", help="Set disk size.")
     parser.add_argument("--type", dest="disk_type", choices=["qcow2", "raw"], default="qcow2", help="Set disk type.")
     parser.add_argument("--test", dest="test_mode", action="store_true", help="Run in test mode.")
@@ -169,7 +174,8 @@ try:
     qemu.memory = args.memory
     qemu.cpu_type = args.cpu_type
     qemu.cpu_opts = args.cpu_opts
-    qemu.network = args.network
+    qemu.net_name = args.net_name
+    qemu.net_type = args.net_type
     qemu.disk_size = args.disk_size
     qemu.disk_type = args.disk_type
     qemu.test_mode = args.test_mode
