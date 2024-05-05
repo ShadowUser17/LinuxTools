@@ -22,7 +22,7 @@ class VM:
         self.memory = "2G"
         self.address = "127.0.0.1"
         self.cpu_type = "qemu64-v1"
-        self.cpu_opts = "ssse3 sse4.1 sse4.2"
+        self.cpu_opts = "avx ssse3 sse4.1 sse4.2"
         self.net_name = "virbr0"
         self.net_type = "e1000"
         self.disk_size = "20G"
@@ -155,7 +155,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--cpu", dest="cores", default="1", help="Set CPU cores.")
     parser.add_argument("--mem", dest="memory", default="2G", help="Set VM memory.")
     parser.add_argument("--cpu_type", dest="cpu_type", choices=["host", "qemu64-v1"], default="qemu64-v1", help="Set CPU type.")
-    parser.add_argument("--cpu_opts", dest="cpu_opts", default="ssse3 sse4.1 sse4.2", help="Enable CPU features.")
+    parser.add_argument("--cpu_opts", dest="cpu_opts", default="avx ssse3 sse4.1 sse4.2", help="Enable CPU features.")
     parser.add_argument("--net", dest="net_name", default="virbr0", help="Set network bridge.")
     parser.add_argument("--net_type", dest="net_type", choices=["e1000", "virtio-net"], default="e1000", help="Set network interface type.")
     parser.add_argument("--size", dest="disk_size", default="20G", help="Set disk size.")
