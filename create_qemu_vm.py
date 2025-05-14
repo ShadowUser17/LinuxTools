@@ -29,11 +29,13 @@ class VM:
         self.disk_type = "qcow2"
         self.test_mode = False
         self.write_force = False
+        self.is_snapshot = False
 
     def __call__(self) -> str:
         if not self.test_mode:
             self.create_base_dirs()
             self.create_disk()
+            self.create_snapshot()
             self.create_script()
 
         return self.__repr__()
@@ -59,7 +61,7 @@ class VM:
         net_name=self.net_name,
         net_type=self.net_type,
         net_mac=self.get_mac_address(),
-        disk_path=self.get_disk_path(),
+        disk_path=self.get_snapshot_path() if self.is_snapshot else self.get_disk_path(),
         disk_size=self.disk_size,
         vm_address=self.address,
         vm_port="10{}".format(self.id),
@@ -80,6 +82,9 @@ class VM:
 
     def get_disk_path(self) -> pathlib.Path:
         return self._vms_dir.joinpath("vm-{}-001.{}".format(self.id, self.disk_type))
+
+    def get_snapshot_path(self) -> pathlib.Path:
+        return self._vms_dir.joinpath("vm-{}-001-snapshot.{}".format(self.id, self.disk_type))
 
     def get_script_path(self) -> pathlib.Path:
         return self._vms_dir.joinpath("{}-vm-run.sh".format(self.id))
@@ -103,6 +108,16 @@ class VM:
 
             cmd.wait()
             print("Created:", self.get_disk_path())
+
+    def create_snapshot(self) -> None:
+        if not self.get_snapshot_path().exists():
+            cmd = subprocess.Popen(
+                ['/usr/bin/qemu-img', 'create', '-f', self.disk_type, '-b', str(self.get_disk_path()), '-F', self.disk_type, str(self.get_snapshot_path())],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=False
+            )
+
+            cmd.wait()
+            print("Created:", self.get_snapshot_path())
 
     def create_script(self) -> None:
         template = '''\
@@ -135,7 +150,7 @@ qemu-system-x86_64 -nodefaults \\
             net_type=self.net_type,
             net_name=self.net_name,
             net_mac=self.get_mac_address(),
-            vm_disk=self.get_disk_path(),
+            vm_disk=self.get_snapshot_path() if self.is_snapshot else self.get_disk_path(),
             vm_address=self.address,
             vm_port="10{}".format(self.id),
             mon_port="20{}".format(self.id)
@@ -162,6 +177,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--type", dest="disk_type", choices=["qcow2", "raw"], default="qcow2", help="Set disk type.")
     parser.add_argument("--test", dest="test_mode", action="store_true", help="Run in test mode.")
     parser.add_argument("--force", dest="write_force", action="store_true", help="Rewrite existing script.")
+    parser.add_argument("--snapshot", dest="is_snapshot", action="store_true", help="Create and boot from snapshot.")
     return parser.parse_args()
 
 
@@ -180,6 +196,7 @@ try:
     qemu.disk_type = args.disk_type
     qemu.test_mode = args.test_mode
     qemu.write_force = args.write_force
+    qemu.is_snapshot = args.is_snapshot
 
     print("VM info:\n", qemu(), sep="")
 
