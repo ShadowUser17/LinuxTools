@@ -110,7 +110,7 @@ class VM:
             print("Created:", self.get_disk_path())
 
     def create_snapshot(self) -> None:
-        if not self.get_snapshot_path().exists():
+        if not self.get_snapshot_path().exists() and self.is_snapshot:
             cmd = subprocess.Popen(
                 ['/usr/bin/qemu-img', 'create', '-f', self.disk_type, '-b', str(self.get_disk_path()), '-F', self.disk_type, str(self.get_snapshot_path())],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=False
