@@ -93,6 +93,9 @@ class VM:
         file = self._iso_dir.joinpath(self.iso)
         return str(file) if file.is_file() else ""
 
+    def get_sys_args(self) -> str:
+        return " ".join(sys.argv[1:])
+
     def create_base_dirs(self) -> None:
         self._root_dir.mkdir(exist_ok=True)
         self._iso_dir.mkdir(exist_ok=True)
@@ -122,6 +125,7 @@ class VM:
     def create_script(self) -> None:
         template = '''\
 #!/bin/bash
+# {sys_args}
 VMISO="{vm_iso}"
 
 echo -e "{vm_id} ({net_mac})"
@@ -141,6 +145,7 @@ qemu-system-x86_64 -nodefaults \\
 '''
 
         data = template.format(
+            sys_args=self.get_sys_args(),
             vm_id=self.id,
             vm_iso=self.get_boot_path(),
             vm_pid=self._vms_dir.joinpath("{}.pid".format(self.id)),
