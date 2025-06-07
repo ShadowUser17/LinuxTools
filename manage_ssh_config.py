@@ -37,7 +37,7 @@ class ConfigManager:
             self._items.append({"Host": host})
 
     def get_item(self, host: str) -> dict:
-        item = list(filter(lambda item: item.get("Host", "") == host, self._items))
+        item = list(filter(lambda item: item.get("Host", "").startswith(host), self._items))
         return item[0] if item else {}
 
     def del_item(self, host: str) -> None:
