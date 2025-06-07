@@ -1,2 +1,3 @@
 boto3
 flake8
+paramiko
