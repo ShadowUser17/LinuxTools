@@ -85,6 +85,9 @@ class VM:
         return ",".join(tmp)
 
     def get_bios_path(self) -> str:
+        if not self._bios_dir.exists():
+            raise FileExistsError("Not found: {}".format(self._bios_dir))
+
         return str(self._bios_dir)
 
     def get_disk_path(self) -> pathlib.Path:
@@ -116,7 +119,10 @@ class VM:
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=False
             )
 
-            print("Created:", self.get_disk_path(), "Code:", cmd.wait())
+            if cmd.wait():
+                raise OSError("Disk create operation returned non-zero code!")
+
+            print("Created:", self.get_disk_path())
 
     def create_snapshot(self) -> None:
         if not self.get_snapshot_path().exists() and self.is_snapshot:
@@ -125,7 +131,10 @@ class VM:
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=False
             )
 
-            print("Created:", self.get_snapshot_path(), "Code:", cmd.wait())
+            if cmd.wait():
+                raise OSError("Snapshot create operation returned non-zero code!")
+
+            print("Created:", self.get_snapshot_path())
 
     def create_script(self) -> None:
         template = '''\
