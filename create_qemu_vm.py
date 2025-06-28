@@ -11,6 +11,7 @@ import subprocess
 
 class VM:
     def __init__(self, id: str) -> None:
+        self._bios_dir = pathlib.Path(os.environ.get("QEMU_BIOS_IMG", "/usr/share/OVMF/OVMF_CODE.fd"))
         self._root_dir = pathlib.Path(os.environ.get("QEMU_BASE_DIR", os.path.expanduser("~/qemu")))
         self._iso_dir = pathlib.Path(os.environ.get("QEMU_ISO_DIR", self._root_dir.joinpath("iso")))
         self._vms_dir = pathlib.Path(os.environ.get("QEMU_VMS_DIR", self._root_dir.joinpath("vms")))
@@ -27,6 +28,7 @@ class VM:
         self.net_type = "e1000"
         self.disk_size = "20G"
         self.disk_type = "qcow2"
+        self.uefi_bios = False
         self.test_mode = False
         self.write_force = False
         self.is_snapshot = False
@@ -46,6 +48,7 @@ class VM:
    Monitor: "telnet://{vm_address}:{mon_port}"
    Access: "spice://{vm_address}:{vm_port}"
    CPU: "{cpu_type}: {vm_cores}"
+   BIOS: "{vm_bios}"
    Options: "{cpu_opts}"
    Memory: "{vm_memory}"
    Network: "{net_name}" ({net_type}: {net_mac})
@@ -57,6 +60,7 @@ class VM:
         vm_cores=self.cores,
         cpu_type=self.cpu_type,
         cpu_opts=self.cpu_opts,
+        vm_bios=self.get_bios_path() if self.uefi_bios else "",
         vm_memory=self.memory,
         net_name=self.net_name,
         net_type=self.net_type,
@@ -79,6 +83,9 @@ class VM:
         tmp = [self.cpu_type]
         tmp.extend(map(lambda item: "+{}".format(item), self.cpu_opts.split()))
         return ",".join(tmp)
+
+    def get_bios_path(self) -> str:
+        return str(self._bios_dir)
 
     def get_disk_path(self) -> pathlib.Path:
         return self._vms_dir.joinpath("vm-{}-001.{}".format(self.id, self.disk_type))
@@ -109,8 +116,7 @@ class VM:
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=False
             )
 
-            cmd.wait()
-            print("Created:", self.get_disk_path())
+            print("Created:", self.get_disk_path(), "Code:", cmd.wait())
 
     def create_snapshot(self) -> None:
         if not self.get_snapshot_path().exists() and self.is_snapshot:
@@ -119,8 +125,7 @@ class VM:
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=False
             )
 
-            cmd.wait()
-            print("Created:", self.get_snapshot_path())
+            print("Created:", self.get_snapshot_path(), "Code:", cmd.wait())
 
     def create_script(self) -> None:
         template = '''\
@@ -135,7 +140,7 @@ echo -e "ncat -t {vm_address} {mon_port}"
 qemu-system-x86_64 -nodefaults \\
 -boot "order=c,menu=on" -monitor "telnet:{vm_address}:{mon_port},server,nowait" \\
 -smp "sockets=1,cores={vm_cores}" -m "{vm_memory}" -vga qxl \\
--cpu "{cpu_opts}" -machine "type=q35,accel=kvm" \\
+-cpu "{cpu_opts}" -machine "type=q35,accel=kvm" {vm_bios}\\
 -name "{vm_id}" -pidfile "{vm_pid}" -daemonize \\
 -drive "if=ide,index=0,media=cdrom,file=$VMISO" \\
 -drive "if=ide,index=1,media=disk,cache=none,file={vm_disk}" \\
@@ -155,6 +160,7 @@ qemu-system-x86_64 -nodefaults \\
             net_type=self.net_type,
             net_name=self.net_name,
             net_mac=self.get_mac_address(),
+            vm_bios="-bios \"{}\" ".format(self.get_bios_path()) if self.uefi_bios else "",
             vm_disk=self.get_snapshot_path() if self.is_snapshot else self.get_disk_path(),
             vm_address=self.address,
             vm_port="10{}".format(self.id),
@@ -180,6 +186,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("--net_type", dest="net_type", choices=["e1000", "virtio-net"], default="e1000", help="Set network interface type.")
     parser.add_argument("--size", dest="disk_size", default="20G", help="Set disk size.")
     parser.add_argument("--type", dest="disk_type", choices=["qcow2", "raw"], default="qcow2", help="Set disk type.")
+    parser.add_argument("--uefi", dest="uefi_bios", action="store_true", help="Enable UEFI bios.")
     parser.add_argument("--test", dest="test_mode", action="store_true", help="Run in test mode.")
     parser.add_argument("--force", dest="write_force", action="store_true", help="Rewrite existing script.")
     parser.add_argument("--snapshot", dest="is_snapshot", action="store_true", help="Create and boot from snapshot.")
@@ -199,6 +206,7 @@ try:
     qemu.net_type = args.net_type
     qemu.disk_size = args.disk_size
     qemu.disk_type = args.disk_type
+    qemu.uefi_bios = args.uefi_bios
     qemu.test_mode = args.test_mode
     qemu.write_force = args.write_force
     qemu.is_snapshot = args.is_snapshot
